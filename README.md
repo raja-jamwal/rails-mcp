@@ -14,7 +14,7 @@ Works with Rails, Sinatra, Hanami, Roda, and any other Rack-based framework. The
 
 <a href="https://www.apollo.io/"><img src="docs/assets/apollo-logo.jpg" alt="Apollo.io" width="100"/></a>
 
-Running in production at Apollo.io against a Rails codebase with 20k+ Ruby files.
+Used at Apollo.io against a Rails codebase with 20k+ Ruby files.
 
 ## Use cases
 
