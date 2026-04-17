@@ -1,5 +1,7 @@
 # rails-mcp
 
+> **Setting this up?** Point your coding agent (Cursor, Claude Code, etc.) at [`llms.txt`](./llms.txt) and ask it to self-configure rails-mcp in your project.
+
 A Ruby gem that provides AI assistants with ruby code execution capabilities within the context of existing running application server. Think of it giving AI assistant lighting-speed access to ruby console without the need to write script, reload or restart.
 
 Works with Rails, Sinatra, Hanami, Roda, and any other Rack-based framework. The code is executed in your application's context for debugging and investigation. 
