@@ -30,14 +30,7 @@ module RailsMcp
 
       def call(env)
         req = Rack::Request.new(env)
-        
-        # Check for token authentication
-        unless authorized?(req)
-          return [401, {"content-type" => "application/json"}, [JSON.generate({
-            "error" => "Unauthorized: Invalid or missing token"
-          })]]
-        end
-        
+
         case [req.request_method, req.path_info]
         when ["POST", "/rpc"] then handle_rpc(req)
         else
@@ -46,20 +39,6 @@ module RailsMcp
       end
 
       private
-
-      def authorized?(req)
-        expected_token = ENV["RAILS_MCP_TOKEN"]
-        
-        # If no token is configured in ENV, consider it unauthorized
-        return false if expected_token.nil? || expected_token.empty?
-        
-        # Token must be at least 8 characters long
-        return false if expected_token.length < 8
-        
-        # Check if the token query parameter matches the expected token
-        provided_token = req.params["token"]
-        provided_token == expected_token
-      end
 
       def handle_rpc(req)
         payload = JSON.parse(req.body.read)

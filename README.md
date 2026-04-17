@@ -72,22 +72,17 @@ bundle exec rackup -p 9292
 bundle exec rails server
 ```
 
-### Token Authentication
+### Environment-scoped mounting
 
-The MCP server requires token-based authentication for all requests. Set the `RAILS_MCP_TOKEN` environment variable before starting your server:
+This gem ships without authentication — the MCP endpoint will accept any request that reaches it. You are responsible for ensuring it is only mounted where appropriate. A typical Rails setup gates it on environment:
 
-```bash
-# Set the token (minimum 8 characters required)
-export RAILS_MCP_TOKEN="your-secret-token"
-
-# Then start your server
-bundle exec rackup -p 9292
+```ruby
+Rails.application.routes.draw do
+  mount RailsMcp::MCP::Server.new => "/mcp" if Rails.env.development?
+end
 ```
 
-**Important:** The server will reject all requests without a valid token. Make sure to:
-1. Set `RAILS_MCP_TOKEN` in your environment before starting the server
-2. The token must be at least 8 characters long
-3. Include the token as a query parameter (`?token=your-secret-token`) in all MCP client requests
+For staging or production access, combine that with network-level restrictions (firewall, VPC, SSH port-forward, VPN) so the endpoint is never reachable from the open internet.
 
 ## MCP Protocol
 
@@ -114,33 +109,28 @@ Add to your MCP client configuration (`.cursor/mcp.json` for Cursor or `claude_d
 {
   "mcpServers": {
     "rails-mcp": {
-      "command": "npx",
-      "args": [
-        "mcp-remote",
-        "http://localhost:3001/mcp/rpc?token=your-secret-token"
-      ]
+      "url": "http://localhost:3001/mcp/rpc"
     }
   }
 }
 ```
 
-## Deeplink for setting up cursor
-You might need to customise
+For Claude Code, add it from the command line:
 
-<a href="cursor://anysphere.cursor-deeplink/mcp/install?name=rails-mcp&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjMwMDEvbWNwL3JwYz90b2tlbj1mZGY5ZWY2YmQ0OGUxNTUxIn0%3D">cursor://anysphere.cursor-deeplink/mcp/install?name=rails-mcp&config=eyJ1cmwiOiJodHRwOi8vbG9jYWxob3N0OjMwMDEvbWNwL3JwYz90b2tlbj1mZGY5ZWY2YmQ0OGUxNTUxIn0%3D</a>
-
-**Note:** Replace `your-secret-token` with the same token you set in the `RAILS_MCP_TOKEN` environment variable on your server. The token must be included as a query parameter in the URL.
+```bash
+claude mcp add rails-mcp --transport http http://localhost:3001/mcp/rpc
+```
 
 ![MCP integration in Cursor](docs/assets/mcp-in-cursor.png)
 
 ### Other MCP Clients
 
-Any MCP-compatible client can connect to the server by making JSON-RPC requests to the `/mcp/rpc?token=your-secret-token` endpoint.
+Any MCP-compatible client can connect to the server by making JSON-RPC requests to the `/mcp/rpc` endpoint.
 
 Example with curl:
 
 ```bash
-curl -X POST "http://localhost:3001/mcp/rpc?token=your-secret-token" \
+curl -X POST "http://localhost:3001/mcp/rpc" \
   -H "Content-Type: application/json" \
   -d '{
     "jsonrpc": "2.0",
@@ -162,13 +152,10 @@ bundle exec rspec
 ⚠️ **This gem executes arbitrary Ruby code.** 
 
 **Important security considerations:**
-- **Token Authentication Required:** The server requires a token for all requests. Set `RAILS_MCP_TOKEN` environment variable (minimum 8 characters) and include it in all client requests
+- **No built-in authentication.** Gate the mount on environment (e.g., `if Rails.env.development?`) so the endpoint isn't exposed in production by accident
 - Only use in development environments or secure, isolated production environments
-- Use a strong, randomly-generated token of at least 8 characters (recommended: `openssl rand -hex 32`)
-- Never commit tokens to version control
-- Rotate tokens regularly
+- Rely on network-level restrictions (firewall, VPC, SSH port-forward, VPN) to limit access
 - Consider running in a sandboxed or containerized environment
-- Use network-level restrictions (firewall, VPC) to limit access
 - Monitor and log all code execution requests
 
 ## Concurrency Note

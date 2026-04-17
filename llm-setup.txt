@@ -1,0 +1,136 @@
+rails-mcp: self-setup instructions for a coding agent
+======================================================
+
+You are configuring an existing application in the current working directory
+to expose the rails-mcp MCP server, then wiring the user's MCP client
+(Cursor or Claude Code) to it. Follow the steps below in order. Only take
+the actions that apply to the host project — detect the framework first.
+
+Step 1 — Detect the host framework
+----------------------------------
+Inspect the repo to decide which framework is in use:
+- Rails:   `config/application.rb` exists, or `gem "rails"` in the Gemfile.
+- Sinatra: `gem "sinatra"` in the Gemfile.
+- Rack:    a bare `config.ru` at the repo root, no Rails/Sinatra.
+
+If none of the above match, stop and report that the framework is
+unsupported — rails-mcp needs a Rack-compatible host.
+
+Step 2 — Add the gem
+--------------------
+Append this line to the host project's `Gemfile` (inside the top-level
+scope, not a group — the server must be loadable in every environment
+where you intend to mount it):
+
+    gem "rails_mcp", git: "https://github.com/raja-jamwal/rails-mcp.git"
+
+Then run `bundle install` from the repo root.
+
+Step 3 — Mount the server
+-------------------------
+This gem ships without authentication. Gate the mount on environment so
+the endpoint is not exposed in production by accident. Use
+`Rails.env.development?` (or the equivalent for the host framework) unless
+the user has explicitly asked for broader access.
+
+Rails — edit `config/routes.rb`:
+
+    require "rails_mcp/mcp/server"
+
+    Rails.application.routes.draw do
+      # ...existing routes...
+      mount RailsMcp::MCP::Server.new => "/mcp" if Rails.env.development?
+    end
+
+Sinatra — in the file that boots the app (often `config.ru` or
+`app.rb`), mount the server under `/mcp`:
+
+    require "rails_mcp/mcp/server"
+
+    map "/mcp" do
+      run RailsMcp::MCP::Server.new
+    end if ENV["RACK_ENV"] == "development"
+
+Rack (plain `config.ru`):
+
+    require "rails_mcp"
+    require "rails_mcp/mcp/server"
+
+    map "/mcp" do
+      run RailsMcp::MCP::Server.new
+    end if ENV["RACK_ENV"] == "development"
+
+The server routes one endpoint internally: `POST /rpc`. Combined with the
+`/mcp` mount above, the full URL is `http://<host>:<port>/mcp/rpc`.
+
+Step 4 — Determine the server URL
+---------------------------------
+Find the port the host app runs on in development:
+- Rails defaults to 3000 (check `config/puma.rb`, `bin/dev`, or any
+  `Procfile.dev` for overrides).
+- Rack/Sinatra via `rackup` defaults to 9292.
+
+Use `http://localhost:<port>/mcp/rpc` as the MCP endpoint URL. If the
+host app is served over HTTPS locally, use `https://` — the client must
+also trust the cert.
+
+Step 5 — Configure the MCP client
+---------------------------------
+Do exactly one of the following, based on which client the user is using.
+If unclear, ask.
+
+Cursor — create or update `.cursor/mcp.json` at the host project root.
+Cursor supports direct HTTP transport via a `url` field; no `mcp-remote`
+shim is needed:
+
+    {
+      "mcpServers": {
+        "rails-mcp": {
+          "url": "http://localhost:3000/mcp/rpc"
+        }
+      }
+    }
+
+Replace the URL with the one from Step 4. If `.cursor/mcp.json` already
+exists with other servers, merge the `rails-mcp` entry into the existing
+`mcpServers` object rather than overwriting the file.
+
+Claude Code — run from the host project root:
+
+    claude mcp add rails-mcp --transport http http://localhost:3000/mcp/rpc
+
+Replace the URL with the one from Step 4.
+
+Step 6 — Verify
+---------------
+1. Start the host app in development (e.g., `bin/rails server`,
+   `bundle exec rackup`, or the project's existing dev command).
+2. Confirm the endpoint responds:
+
+    curl -X POST http://localhost:3000/mcp/rpc \
+      -H "Content-Type: application/json" \
+      -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+
+   Expect a JSON response listing a single tool named
+   `evaluate_ruby_code`.
+
+3. In the MCP client, toggle the `rails-mcp` server on (Cursor reloads
+   automatically; in Claude Code use `/mcp` to inspect state). Ask the
+   client to call `evaluate_ruby_code` with `"code": "1 + 1"` and confirm
+   it returns `=> 2`.
+
+If verification fails, the most common causes are: the server wasn't
+mounted (wrong environment guard), the host app isn't running, the port
+differs from the one in the client config, or the mount is scoped to a
+non-matching env. Fix and retry — do not fall back to hard-coding or
+disabling safeguards.
+
+Notes for the agent
+-------------------
+- Do not add a `RAILS_MCP_TOKEN` env var or any `?token=...` query param.
+  The gem has no auth; gating is by env + network.
+- Do not commit `.cursor/mcp.json` unless the user asks — it is a
+  per-developer file and is often gitignored.
+- Do not weaken the environment guard (e.g., dropping the
+  `if Rails.env.development?`) unless the user explicitly requests
+  production/staging access and understands the risk.
