@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    rails-mcp (0.1.0)
+    rails-mcp (0.1.1)
       rack (>= 2.2)
 
 GEM
