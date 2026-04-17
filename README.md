@@ -27,7 +27,7 @@ Used at Apollo.io against a Rails codebase with 20k+ Ruby files.
 Add this line to your application's Gemfile:
 
 ```ruby
-gem "rails_mcp", git: "https://github.com/raja-jamwal/rails-mcp.git"
+gem "rails-mcp"
 ```
 
 Or install locally for development:

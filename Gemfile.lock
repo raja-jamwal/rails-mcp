@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    rails_mcp (0.1.0)
+    rails-mcp (0.1.0)
       rack (>= 2.2)
 
 GEM
@@ -35,7 +35,7 @@ PLATFORMS
 DEPENDENCIES
   rack-test
   rackup
-  rails_mcp!
+  rails-mcp!
   rspec (~> 3.0)
   webrick
 
