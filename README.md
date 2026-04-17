@@ -14,6 +14,8 @@ Works with Rails, Sinatra, Hanami, Roda, and any other Rack-based framework. The
 
 <a href="https://www.apollo.io/"><img src="docs/assets/apollo-logo.jpg" alt="Apollo.io" width="100"/></a>
 
+Running in production at Apollo.io against a Rails codebase with 20k+ Ruby files.
+
 ## Use cases
 
 1. Learn a new codebase or code areas quickly. With your AI client and a running server, you can ask it to research while executing snippets from your actual application code. It effectively acts as an in-loop code-verification block.
